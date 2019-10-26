@@ -93,8 +93,60 @@ class DataSet:
                 self.result = v[:,0: 2]
 
         self.result = self.result[self.result[:,0].argsort()]
+
+        self.calculate_coefficients(cluster_dict)
         
         self.pca(cluster_dict)
+
+
+    def calculate_coefficients(self, algo_result):
+        P = np.zeros((self.rows.shape[0], self.rows.shape[0]), dtype=np.float64)
+        C = np.zeros((self.rows.shape[0], self.rows.shape[0]), dtype=np.float64)
+
+        ground_truth_dict = dict()
+
+        for r in self.rows:
+            ground_truth_dict[r[0]] = r
+
+        algo_dict = dict()
+
+        for r in self.result:
+            algo_dict[r[0]] = r[1]
+
+        i = 0
+        while i < self.rows.shape[0]:
+            j = i + 1
+
+            while j < self.rows.shape[0]:
+                if ground_truth_dict[self.rows[i][0]][1] ==  ground_truth_dict[self.rows[j][0]][1]:
+                    P[i][j] = 1
+                    P[j][i] = 1
+
+                if algo_dict[self.rows[i][0]] == algo_dict[self.rows[j][0]]:
+                    C[i][j] = 1
+                    C[j][i] = 1
+
+                j += 1
+
+            i += 1
+
+        M00 = M10 = M01 = M11 = 0
+
+        for i in range(self.rows.shape[0]):
+            for j in range(self.rows.shape[0]):
+                if P[i][j] == 1 and C[i][j] == 1:
+                    M11 += 1
+                elif P[i][j] == 1 and C[i][j] == 0:
+                    M10 += 1
+                elif P[i][j] == 0 and C[i][j] == 1:
+                    M01 += 1
+                else:
+                    M00 += 1
+
+        rand_index = (M11 + M00) / (M11 + M00 + M10 + M01)
+        jaccard = (M11) / (M11 + M10 + M01)
+
+        print("For file {}:\n RandIndex: {}\n Jaccard Coefficient: {}\n".format(self.file_name, rand_index, jaccard))
 
 
     def pca(self, cluster_dict):
@@ -126,6 +178,7 @@ class DataSet:
                 W[j][i] = wt
 
                 D[i][i] += wt
+                D[j][j] += wt
 
                 j += 1
 
