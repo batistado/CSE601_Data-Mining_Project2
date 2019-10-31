@@ -9,15 +9,23 @@ from sklearn.decomposition import PCA
 from scipy.stats import multivariate_normal
 
 class DataSet:
-    def __init__(self, file_name, path, conv_threshold, max_iterations, k):
+    def __init__(self, file_name, path, conv_threshold, max_iterations, k, smoothing_value = 1e-09):
         self.file_name = file_name
         self.path = path
         self.k = k
         self.conv_threshold = conv_threshold
         self.max_iterations = max_iterations
+        self.smoothing_value = smoothing_value
         self.read_file()
-        self.process_k_means()
         self.process_GMM()
+
+    def set_manual_values(self):
+        self.reg_sigma = self.smoothing_value * np.ones(len(self.data[0]) - 2)
+        mu = [[0, 0], [1, 1], [2, 2]]
+        self.mu = np.array(mu, dtype=np.float64)
+        sigma = [[[1, 1], [1, 1]], [[2,2], [2,2]], [[3,3], [3,3]]]
+        self.sigma = np.array(sigma, dtype=np.float64)
+        self.pi = np.array([0.5, 0.5, 0.5], dtype=np.float64)
 
     def read_file(self):
         rows = []
@@ -29,11 +37,17 @@ class DataSet:
         self.rows = np.array(rows, dtype=np.float64)
         self.data = np.copy(self.rows)
 
+        if input("Do you want to K-means to randomnly assign paramters? (Y/N):").upper() == 'N':
+            self.set_manual_values()
+            return
+
         if input("Do you want to enter starting points by row id? (Y/N):").upper() == 'Y':
             self.get_initial_points_by_index()
+            self.process_k_means()
             return
 
         self.get_initial_points_by_points()
+        self.process_k_means()
 
     def get_initial_points_by_index(self):
         initial_indices = []
@@ -113,13 +127,12 @@ class DataSet:
             iter += 1
 
         self.mu = centers
-
-    def process_GMM(self):
-        self.reg_sigma = 1e-8 * np.identity(len(self.data[0]) - 2)
         self.sigma = np.zeros((self.k, self.data.shape[1] - 2, self.data.shape[1] - 2), dtype='float')
         for dim in range(len(self.sigma)):
             np.fill_diagonal(self.sigma[dim], 1)
         self.pi = np.ones(self.k) / self.k
+
+    def process_GMM(self):
         log_likelyhoods = []
         
         for i in range(self.max_iterations):  
@@ -139,7 +152,15 @@ class DataSet:
                 self.sigma.append(((1 / m_c) * np.dot((np.array(prob_matrix[:,c]).reshape(len(self.data), 1)*(self.data[:, 2:]-mu_c)).T,(self.data[:, 2:]-mu_c)))+self.reg_sigma)
                 self.pi.append(m_c / np.sum(prob_matrix))
 
-            log_likelyhoods.append(np.log(np.sum([self.k*multivariate_normal(mean=self.mu[i],cov=self.sigma[j], allow_singular=True).pdf(self.data[:, 2:]) for k,i,j in zip(self.pi,range(len(self.mu)),range(len(self.sigma)))])))
+            log_likelyhoods.append(np.log(np.sum([k*multivariate_normal(mean=self.mu[i],cov=self.sigma[j], allow_singular=True).pdf(self.data[:, 2:]) for k,i,j in zip(self.pi,range(len(self.mu)),range(len(self.sigma)))])))
+            
+            if len(log_likelyhoods) > 1 and abs(log_likelyhoods[-1] - log_likelyhoods[-2]) < self.conv_threshold:
+                break
+
+        print("Stopped in {} iterations".format(len(log_likelyhoods)))
+        print("Mew: {}".format(self.mu))
+        print("Sigma: {}".format(self.sigma))
+        print("Pi: {}".format(self.pi))
 
         cluster_dict = dict()
 
@@ -188,8 +209,6 @@ class DataSet:
 
         for r in self.result:
             algo_dict[r[0]] = r[1]
-
-        print(ground_truth_dict, algo_dict)
 
         i = 0
         while i < self.rows.shape[0]:
@@ -244,11 +263,11 @@ class DataSet:
     
 
         
-def read_data(conv_threshold, max_iterations, k):
+def read_data(conv_threshold, max_iterations, k, smoothing_value):
     path = os.path.abspath(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'Data'))
     data_sets = []
     for file in os.listdir(path):
-        data_sets.append(DataSet(file, os.path.join(path, file), conv_threshold, max_iterations, k))
+        data_sets.append(DataSet(file, os.path.join(path, file), conv_threshold, max_iterations, k, smoothing_value))
 
     return data_sets
 
@@ -256,11 +275,12 @@ def main():
     # try:
     conv_threshold = float(input("Enter the convergence threshold:"))
     max_iterations = int(input("Enter max number of iterations:"))
+    smoothing_value = float(input("Enter the smoothing value:"))
     k = int(input("Enter number of clusters:"))
 
     
     print("Now Scanning Data directory..")
-    data_sets = read_data(conv_threshold, max_iterations, k)
+    data_sets = read_data(conv_threshold, max_iterations, k, smoothing_value)
     # except Exception as ex:
     #     print("Something went wrong. Error: " + str(ex))
     #     exc_type, exc_obj, exc_tb = sys.exc_info()

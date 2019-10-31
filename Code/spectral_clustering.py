@@ -88,9 +88,9 @@ class DataSet:
                 r[1] = k
 
             if self.result is not None:
-                self.result = np.concatenate((self.result, v[:,0: 2]), axis=0)
+                self.result = np.concatenate((self.result, v[:, 0: 2]), axis=0)
             else:
-                self.result = v[:,0: 2]
+                self.result = v[:, 0: 2]
 
         self.result = self.result[self.result[:,0].argsort()]
 
@@ -106,7 +106,7 @@ class DataSet:
         ground_truth_dict = dict()
 
         for r in self.rows:
-            ground_truth_dict[r[0]] = r
+            ground_truth_dict[r[0]] = r[1]
 
         algo_dict = dict()
 
@@ -118,7 +118,7 @@ class DataSet:
             j = i + 1
 
             while j < self.rows.shape[0]:
-                if ground_truth_dict[self.rows[i][0]][1] ==  ground_truth_dict[self.rows[j][0]][1]:
+                if ground_truth_dict[self.rows[i][0]] ==  ground_truth_dict[self.rows[j][0]]:
                     P[i][j] = 1
                     P[j][i] = 1
 
@@ -172,7 +172,7 @@ class DataSet:
         while i < self.data.shape[0]:
             j = i + 1
             while j < self.data.shape[0]:
-                wt = e ** (-1 * (np.linalg.norm(self.data[i][2:] - self.data[j][2:])) ** 2 / self.sigma ** 2)
+                wt = e ** (-1 * (np.linalg.norm(self.data[i][2:] - self.data[j][2:])) ** 2 /  self.sigma ** 2)
 
                 W[i][j] = wt
                 W[j][i] = wt
@@ -183,11 +183,12 @@ class DataSet:
                 j += 1
 
             i += 1
-
         L = D - W
 
         w, v = np.linalg.eig(L)
-        indices = w.argsort()[:self.k]
+        ev = w.argsort()
+        k = self.find_eigen_gap(w, ev)
+        indices= ev[:k]
         v = v[:,indices]
         
         self.data = np.concatenate((self.data[:, 0:2], v), axis=1)
@@ -204,9 +205,16 @@ class DataSet:
 
         self.process_k_means()
 
-    
+    def find_eigen_gap(self, eigenValues, ev):
+        delta = 0
+        idx = 0
+        for i in range(1, len(ev)):
+            tmp = abs(eigenValues[ev[i]] - eigenValues[ev[i-1]])
+            if tmp > delta:
+                delta = tmp
+                idx = ev[i]
+        return idx
 
-        
 def read_data(k, sigma):
     path = os.path.abspath(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'Data'))
     data_sets = []
