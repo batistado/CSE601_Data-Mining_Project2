@@ -20,7 +20,6 @@ class DataSet:
         self.process_GMM()
 
     def set_manual_values(self):
-        self.reg_sigma = self.smoothing_value * np.ones(len(self.data[0]) - 2)
         mu = [[0, 0], [1, 1], [2, 2]]
         self.mu = np.array(mu, dtype=np.float64)
         sigma = [[[1, 1], [1, 1]], [[2,2], [2,2]], [[3,3], [3,3]]]
@@ -133,6 +132,10 @@ class DataSet:
         self.pi = np.ones(self.k) / self.k
 
     def process_GMM(self):
+        '''
+            Citation: https://www.python-course.eu/expectation_maximization_and_gaussian_mixture_models.php
+        '''
+        self.reg_sigma = self.smoothing_value * np.identity(len(self.data[0]) - 2)
         log_likelyhoods = []
         
         for i in range(self.max_iterations):  
