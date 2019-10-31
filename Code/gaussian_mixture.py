@@ -248,12 +248,23 @@ class DataSet:
 
         print("For file {}:\n RandIndex: {}\n Jaccard Coefficient: {}\n".format(self.file_name, rand_index, jaccard))
 
+    # def pca(self, cluster_dict):
+    #     pca = PCA(n_components=2, svd_solver='full')
+    #     pca.fit(self.rows[:, 2:])
+    #     principle_components_matrix = pca.transform(self.rows[:, 2:])
+    #     df = pd.DataFrame(data = np.concatenate((principle_components_matrix, self.result[:, 1: 2]), axis=1), columns = ['PC1', 'PC2', 'Cluster'])
+    #     self.plot(df, "GMM: {}".format(self.file_name))
+
     def pca(self, cluster_dict):
-        pca = PCA(n_components=2, svd_solver='full')
-        pca.fit(self.rows[:, 2:])
-        principle_components_matrix = pca.transform(self.rows[:, 2:])
-        df = pd.DataFrame(data = np.concatenate((principle_components_matrix, self.result[:, 1: 2]), axis=1), columns = ['PC1', 'PC2', 'Cluster'])
-        self.plot(df, "GMM: {}".format(self.file_name))
+        if self.data.shape[1] > 4:
+            pca = PCA(n_components=2, svd_solver='full')
+            pca.fit(self.rows[:, 2:])
+            principle_components_matrix = pca.transform(self.rows[:, 2:])
+            df = pd.DataFrame(data = np.concatenate((principle_components_matrix, self.result[:, 1: 2]), axis=1), columns = ['PC1', 'PC2', 'Cluster'])
+            self.plot(df, "GMM: {}".format(self.file_name))
+        else:
+            df = pd.DataFrame(data = np.concatenate((self.data[:, 2:], self.result[:, 1: 2]), axis=1), columns = ['PC1', 'PC2', 'Cluster'])
+            self.plot(df, "GMM: {}".format(self.file_name))
 
     @staticmethod
     def plot(df, title):
